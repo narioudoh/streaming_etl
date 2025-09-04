@@ -1,0 +1,110 @@
+#version: "3.9"
+
+networks:
+  etl-net:
+    driver: bridge
+
+x-common-env: &common-env
+  KAFKA_CFG_NODE_ID: 1
+  KAFKA_CFG_PROCESS_ROLES: broker,controller
+  KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+  KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+  KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+  KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+  KAFKA_CFG_CLUSTER_ID: "E6BARfVjQBeEyZoWhRMHmw"
+
+services:
+  kafka:
+    image: bitnami/kafka:3.7.0
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"   # internal
+      - "9094:9094"   # external
+    environment:
+      <<: *common-env
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.0
+    container_name: schema-registry
+    hostname: schema-registry
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    depends_on:
+      - kafka
+
+    networks:
+      - etl-net
+
+  # etl-service:
+  #   build: .
+  #   depends_on:
+  #     - kafka
+  #   environment:
+  #     KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  #     DUCKDB_PATH: /data/etl_data.duckdb
+  #   volumes:
+  #     - ./data:/data
+  #   ports:
+  #     - "8000:8000"
+
+  # streamlit-app:
+  #   build: .
+  #   depends_on:
+  #     - etl-service
+  #   environment:
+  #     DUCKDB_PATH: /data/etl_data.duckdb
+  #   volumes:
+  #     - ./data:/data
+  #   ports:
+  #     - "8501:8501"
+  #   command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+
+
+  clickhouse-01:
+    image: "clickhouse/clickhouse-server:latest"
+    user: "101:101"
+    container_name: clickhouse-01
+    hostname: clickhouse-01
+    volumes:
+      - ${PWD}/fs/volumes/clickhouse-01/etc/clickhouse-server/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml
+      - ${PWD}/fs/volumes/clickhouse-01/etc/clickhouse-server/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml
+      - ${PWD}/fs/volumes/clickhouse-01/data:/var/lib/clickhouse
+      - ${PWD}/fs/volumes/clickhouse-01/log:/var/log/clickhouse
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
+    depends_on:
+      - clickhouse-keeper-01
+
+    networks:
+      - etl-net
+
+  clickhouse-keeper-01:
+    image: "clickhouse/clickhouse-keeper:latest-alpine"
+    user: "101:101"
+    container_name: clickhouse-keeper-01
+    hostname: clickhouse-keeper-01
+    volumes:
+      - ${PWD}/fs/volumes/clickhouse-keeper-01/etc/clickhouse-keeper/keeper_config.xml:/etc/clickhouse-keeper/keeper_config.xml
+      - ${PWD}/fs/volumes/clickhouse-keeper-01/data:/var/lib/clickhouse-keeper
+      - ${PWD}/fs/volumes/clickhouse-keeper-01/log:/var/log/clickhouse-keeper
+    ports:
+      - "127.0.0.1:9181:9181"
+
+    networks:
+      - etl-net
+volumes:
+  kafka_data:
+
+
+
+
+  
