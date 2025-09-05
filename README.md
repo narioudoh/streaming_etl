@@ -27,7 +27,7 @@ A comprehensive real-time ETL (Extract, Transform, Load) pipeline built with Doc
 - **Containerized**: Docker-based deployment for easy setup and scaling
 - **Data Validation**: Built-in data quality checks and error handling
 - **Monitoring**: Real-time processing metrics and performance tracking
-![Alt text](assets\kafka-elt1.png)
+![Alt text](assets/kafka-elt1.png)
 ## 📋 Prerequisites
 
 - Docker and Docker Compose
@@ -305,6 +305,7 @@ For questions and support:
 ---
 
 **Happy Streaming! 🎉**
+
 
 
 
